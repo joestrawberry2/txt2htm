@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>txt2htm - TXT to HTM Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #f0f2ff;
+            border-color: #764ba2;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .info {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.85em;
+            color: #555;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.8em;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>txt2htm</h1>
+        <div class="subtitle">Compress TXT files to HTM format</div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📄</div>
+            <div><strong>Drop your TXT file here</strong></div>
+            <div style="color: #999; margin-top: 5px;">or click to browse</div>
+            <input type="file" id="fileInput" accept=".txt">
+        </div>
+
+        <button class="btn" id="convertBtn" disabled>Convert to HTM</button>
+
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-box">
+                <div class="stat-label">Original Size</div>
+                <div class="stat-value" id="originalSize">0 KB</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Compressed Size</div>
+                <div class="stat-value" id="compressedSize">0 KB</div>
+            </div>
+        </div>
+
+        <div class="info">
+            <strong>How it works:</strong> This converter takes your TXT file and compresses it into a self-extracting HTM file. The HTM file contains the compressed data and automatically displays the original text when opened in a browser.
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const errorDiv = document.getElementById('error');
+        const successDiv = document.getElementById('success');
+        const statsDiv = document.getElementById('stats');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            statsDiv.style.display = 'none';
+
+            if (!file.name.toLowerCase().endsWith('.txt')) {
+                showError('Only TXT files are supported!');
+                selectedFile = null;
+                convertBtn.disabled = true;
+                return;
+            }
+
+            selectedFile = file;
+            convertBtn.disabled = false;
+            uploadArea.innerHTML = `<div class="upload-icon">✅</div><div><strong>${file.name}</strong></div><div style="color: #999; margin-top: 5px;">${formatBytes(file.size)}</div>`;
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            try {
+                const text = await selectedFile.text();
+                const compressed = compressText(text);
+                const htm = generateHTM(compressed, selectedFile.name);
+                
+                downloadHTM(htm, selectedFile.name.replace('.txt', '.htm'));
+                
+                const originalSize = new Blob([text]).size;
+                const compressedSize = new Blob([htm]).size;
+                
+                document.getElementById('originalSize').textContent = formatBytes(originalSize);
+                document.getElementById('compressedSize').textContent = formatBytes(compressedSize);
+                statsDiv.style.display = 'grid';
+                
+                showSuccess(`Successfully converted ${selectedFile.name}!`);
+            } catch (err) {
+                showError('Conversion failed: ' + err.message);
+            }
+        });
+
+        function compressText(text) {
+            const encoded = new TextEncoder().encode(text);
+            const compressed = pako.deflate(encoded);
+            return btoa(String.fromCharCode.apply(null, compressed));
+        }
+
+        function generateHTM(compressedData, filename) {
+            return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${filename}</title>
+<style>body{font-family:monospace;white-space:pre-wrap;padding:20px;background:#1e1e1e;color:#d4d4d4}button{background:#007acc;color:#fff;border:none;padding:10px 20px;cursor:pointer;margin-bottom:10px;border-radius:4px}button:hover{background:#005a9e}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"><\/script>
+</head>
+<body>
+<button onclick="download()">Download Original TXT</button>
+<div id="content">Decompressing...</div>
+<script>
+const d="${compressedData}";
+function decompress(){try{const b=atob(d);const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);const u=pako.inflate(a);const t=new TextDecoder().decode(u);document.getElementById("content").textContent=t;window.originalText=t}catch(e){document.getElementById("content").textContent="Error: "+e.message}}
+function download(){const a=document.createElement("a");a.href="data:text/plain;charset=utf-8,"+encodeURIComponent(window.originalText);a.download="${filename}";a.click()}
+decompress();
+<\/script>
+</body>
+</html>`;
+        }
+
+        function downloadHTM(content, filename) {
+            const blob = new Blob([content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function showError(msg) {
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        function showSuccess(msg) {
+            successDiv.textContent = msg;
+            successDiv.style.display = 'block';
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+</body>
+</html>
